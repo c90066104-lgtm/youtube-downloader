@@ -36,9 +36,11 @@ class LocalCorsProxy : NanoHTTPD("127.0.0.1", 0) {
         .followRedirects(false)
         .followSslRedirects(false)
         .connectTimeout(10, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(120, TimeUnit.SECONDS)
         .writeTimeout(10, TimeUnit.SECONDS)
-        .callTimeout(60, TimeUnit.SECONDS)
+        // Media bodies are streamed and may take longer than a minute on mobile data.
+        // Keep the per-read idle limit, but do not impose a total call deadline.
+        .callTimeout(0, TimeUnit.SECONDS)
         .build()
 
     val localPort: Int get() = listeningPort
