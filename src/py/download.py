@@ -7,6 +7,11 @@ from urllib.parse import urlsplit
 # REPORT_PROGRESS(index, downloaded_bytes, total_bytes, finished) is a JS callback.
 shutil.rmtree("/mnt/dl", ignore_errors=True)
 os.makedirs("/mnt/dl")
+try:
+    import js as _js
+    _js.eval("globalThis.__YTDLP_XHR_DIAG = []")
+except Exception:
+    _js = None
 
 
 def _number(value):
@@ -52,6 +57,16 @@ def _progress_hook(index, state):
     return hook
 
 
+def _xhr_diagnostics():
+    if _js is None:
+        return []
+    try:
+        raw = _js.eval("JSON.stringify((globalThis.__YTDLP_XHR_DIAG || []).slice(-40))")
+        return json.loads(str(raw))
+    except Exception:
+        return []
+
+
 def _debug_report(error, index, format_id, cache_hit, cached_info, selected_format, progress):
     formats = cached_info.get("formats", []) if isinstance(cached_info, dict) else []
     if not isinstance(formats, list):
@@ -84,6 +99,7 @@ def _debug_report(error, index, format_id, cache_hit, cached_info, selected_form
             "has_drm": bool((selected_format or {}).get("has_drm", False)),
         } if selected_format else None,
         "transfer": dict(progress),
+        "xhr_requests": _xhr_diagnostics(),
         "output_files": files,
         "exception_type": type(error).__name__,
         "exception": _safe_error(error),

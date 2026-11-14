@@ -128,6 +128,7 @@ yt_dlp.PROGRESS.append({"status": "error"})`);
     expect(message).toContain("YTDLP_DEBUG=");
     expect(message).toContain('"selected_format_id":"137"');
     expect(message).toContain('"cache_hit":false');
+    expect(message).toContain('"xhr_requests":[]');
     expect(message).not.toContain("token=secret");
   });
 });

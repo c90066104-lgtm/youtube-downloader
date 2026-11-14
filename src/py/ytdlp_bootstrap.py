@@ -15,6 +15,38 @@ _configured_proxy = getattr(js.globalThis, "YTDLP_CORS_PROXY", None)
 _configured_proxy = str(_configured_proxy) if _configured_proxy else ""
 CORS_PROXY = _configured_proxy if _configured_proxy and _configured_proxy not in ("undefined", "null") else _DEFAULT_CORS_PROXY
 
+_XHR_DEBUG_LISTENER = js.Function("""
+return function(event) {
+    const xhr = event.currentTarget;
+    const target = String(xhr.__ydlp_target_url || "");
+    let host = "unknown", kind = "other";
+    try {
+        const url = new URL(target);
+        host = url.hostname;
+        const path = url.pathname.toLowerCase();
+        if (/manifest|m3u8|playlist/.test(path)) kind = "manifest";
+        else if (/videoplayback|segment|chunk|\\.ts$|\\.m4s$/.test(path)) kind = "media";
+        else if (/youtubei|player/.test(path)) kind = "api";
+    } catch (_) {}
+    let bytes = 0;
+    try {
+        const response = xhr.response;
+        if (response && typeof response.byteLength === "number") bytes = response.byteLength;
+        else if (response && typeof response.size === "number") bytes = response.size;
+        else if (typeof response === "string") bytes = new TextEncoder().encode(response).byteLength;
+        else if (typeof xhr.responseText === "string") bytes = new TextEncoder().encode(xhr.responseText).byteLength;
+    } catch (_) {}
+    const header = (name) => { try { return xhr.getResponseHeader(name); } catch (_) { return null; } };
+    const entries = globalThis.__YTDLP_XHR_DIAG || (globalThis.__YTDLP_XHR_DIAG = []);
+    entries.push({
+        method: String(xhr.__ydlp_request_method || "GET"), host, kind,
+        status: Number(xhr.status) || 0, status_text: String(xhr.statusText || "").slice(0, 80),
+        bytes, content_length: header("content-length"), content_range: header("content-range"),
+    });
+    if (entries.length > 40) entries.splice(0, entries.length - 40);
+};
+""")()
+
 _FORBIDDEN_HEADERS = {
     "accept-charset", "accept-encoding", "access-control-request-headers",
     "access-control-request-method", "connection", "content-length", "cookie",
@@ -31,6 +63,14 @@ def _is_unsafe_header(name):
 
 def proxy_open_handler(xhr_instance, method, url, async_val=True, username=None, password=None):
     if url.startswith("http://") or url.startswith("https://"):
+        try:
+            xhr_instance.__ydlp_target_url = str(url)
+            xhr_instance.__ydlp_request_method = str(method)
+            if not getattr(xhr_instance, "__ydlp_debug_attached", False):
+                xhr_instance.addEventListener("loadend", _XHR_DEBUG_LISTENER)
+                xhr_instance.__ydlp_debug_attached = True
+        except Exception:
+            pass
         params = urlencode({"url": url})
         url = f"{CORS_PROXY}?{params}"
 

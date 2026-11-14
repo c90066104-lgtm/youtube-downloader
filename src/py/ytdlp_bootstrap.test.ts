@@ -7,11 +7,24 @@ import bootstrapPy from "./ytdlp_bootstrap.py?raw";
 class FakeXHR {
   opened: unknown[] = [];
   headers: [string, string][] = [];
+  status = 206;
+  statusText = "Partial Content";
+  response = new Uint8Array([1, 2, 3, 4]);
+  private listeners = new Map<string, (event: { currentTarget: FakeXHR }) => void>();
   open(...args: unknown[]) {
     this.opened = args;
   }
   setRequestHeader(name: string, value: string) {
     this.headers.push([name, value]);
+  }
+  addEventListener(name: string, listener: unknown) {
+    this.listeners.set(name, listener as (event: { currentTarget: FakeXHR }) => void);
+  }
+  getResponseHeader(name: string) {
+    return name.toLowerCase() === "content-length" ? "4" : name.toLowerCase() === "content-range" ? "bytes 0-3/4" : null;
+  }
+  finish() {
+    this.listeners.get("loadend")?.({ currentTarget: this });
   }
 }
 
@@ -53,6 +66,20 @@ describe("proxying requests", () => {
     const target = "https://www.youtube.com/watch?v=jNQXAC9IVRw&hl=en";
     expect(open("GET", target, false)[1]).toBe(`${DEFAULT_PROXY}?url=${encodeURIComponent(target)}`);
     expect(open("POST", "http://example.com/a b", true)[1]).toBe(`${DEFAULT_PROXY}?url=http%3A%2F%2Fexample.com%2Fa+b`);
+  });
+
+  it("records response status and byte counts without retaining signed query data", () => {
+    const globals = globalThis as Record<string, unknown>;
+    globals.__YTDLP_XHR_DIAG = [];
+    const xhr = new FakeXHR();
+    (xhr.open as (...args: unknown[]) => void)("GET", "https://manifest.googlevideo.com/api/manifest/hls_playlist?signature=secret", true);
+    xhr.finish();
+    const entries = globals.__YTDLP_XHR_DIAG as Record<string, unknown>[];
+    expect(entries.at(-1)).toEqual({
+      method: "GET", host: "manifest.googlevideo.com", kind: "manifest", status: 206,
+      status_text: "Partial Content", bytes: 4, content_length: "4", content_range: "bytes 0-3/4",
+    });
+    expect(JSON.stringify(entries)).not.toContain("signature=secret");
   });
 
   it("keeps the method and async flag", () => {
