@@ -17,6 +17,8 @@ yt_dlp.reset()
 yt_dlp.INFO = {"id": "jNQXAC9IVRw"}
 yt_dlp.FILES["137"] = ("mp4", b"video-bytes")
 yt_dlp.FILES["140"] = ("m4a", b"audio")
+globals().pop("_CACHED_INFO_URL", None)
+globals().pop("_CACHED_INFO", None)
 `);
 });
 
@@ -43,6 +45,16 @@ describe("download.py", () => {
       ["download", "https://www.youtube.com/watch?v=jNQXAC9IVRw", "137"],
       ["download", "https://www.youtube.com/watch?v=jNQXAC9IVRw", "140"],
     ]);
+  });
+
+  it("downloads from the exact cached format table returned by the listing step", async () => {
+    py.runPython(`
+_CACHED_INFO_URL = "https://www.youtube.com/watch?v=jNQXAC9IVRw"
+_CACHED_INFO = {"id": "jNQXAC9IVRw", "formats": [{"format_id": "137"}]}
+`);
+    expect(await download(["137"])).toEqual({ "jNQXAC9IVRw.f137.mp4": "video-bytes" });
+    const calls = await pyJson<[string, string, string][]>(py, "import yt_dlp\n[c[1:] for c in yt_dlp.CALLS]");
+    expect(calls).toEqual([["process_ie_result", "jNQXAC9IVRw", "137"]]);
   });
 
   it("never asks yt-dlp to merge or post-process (ffmpeg.wasm does that)", async () => {

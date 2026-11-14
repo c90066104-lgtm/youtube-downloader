@@ -1,4 +1,4 @@
-import os, shutil, yt_dlp
+import copy, os, shutil, yt_dlp
 
 # yt-dlp only fetches raw streams here; it never merges (merging is done in the
 # browser with ffmpeg.wasm). Each format ID is downloaded in its own call so the
@@ -25,4 +25,13 @@ for _i, _fid in enumerate(FORMAT_IDS):
         "postprocessors": [],  # no merger / post-processing
         "progress_hooks": [_progress_hook(_i)],
     }) as ydl:
-        ydl.download([TARGET_URL])
+        if globals().get("_CACHED_INFO_URL") == TARGET_URL and isinstance(globals().get("_CACHED_INFO"), dict):
+            _cached_info = globals()["_CACHED_INFO"]
+            if not any(str(f.get("format_id")) == str(_fid) for f in _cached_info.get("formats", [])):
+                raise RuntimeError(f"Format {_fid} is no longer in the listed formats. Fetch formats again and retry.")
+            # Reuse the extraction that supplied the IDs to the picker. A second
+            # YouTube extraction can return a different format table or client set.
+            ydl.process_ie_result(copy.deepcopy(_cached_info), download=True)
+        else:
+            # Compatibility fallback for callers that did not run list_formats.py.
+            ydl.download([TARGET_URL])

@@ -29,6 +29,8 @@ describe("list_formats.py", () => {
     expect(url).toBe("https://youtu.be/x");
     expect(download).toBe(false);
     expect(opts).toMatchObject({ quiet: true, skip_download: true, noprogress: true });
+    const cached = await pyJson<[string, string]>(py, "[_CACHED_INFO_URL, _CACHED_INFO['id']]");
+    expect(cached).toEqual(["https://youtu.be/x", "x"]);
   });
 
   it("returns the id, title and the format fields the UI uses", async () => {

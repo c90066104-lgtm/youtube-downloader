@@ -40,14 +40,27 @@ class YoutubeDL:
         CALLS.append((self.params, "download", urls[0], fid))
         if ERROR:
             raise ERROR
+        self._write_file(fid, INFO)
+        return 0
+
+    def process_ie_result(self, info, download=True):
+        fid = self.params["format"]
+        CALLS.append((self.params, "process_ie_result", info.get("id"), fid))
+        if ERROR:
+            raise ERROR
+        if not any(str(f.get("format_id")) == str(fid) for f in info.get("formats", [])):
+            raise utils.DownloadError("Requested format is not available")
+        self._write_file(fid, info)
+        return info
+
+    def _write_file(self, fid, info):
         ext, data = FILES[fid]
         hooks = self.params.get("progress_hooks", [])
         for d in PROGRESS:
             for hook in hooks:
                 hook({"status": "downloading", **d})
-        path = self.params["outtmpl"] % {"id": INFO.get("id", "vid"), "format_id": fid, "ext": ext}
+        path = self.params["outtmpl"] % {"id": info.get("id", "vid"), "format_id": fid, "ext": ext}
         with open(path, "wb") as f:
             f.write(data)
         for hook in hooks:
             hook({"status": "finished", "downloaded_bytes": len(data), "total_bytes": len(data)})
-        return 0
