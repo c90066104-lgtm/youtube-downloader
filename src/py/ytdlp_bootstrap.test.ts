@@ -73,11 +73,13 @@ describe("proxying requests", () => {
     globals.__YTDLP_XHR_DIAG = [];
     const xhr = new FakeXHR();
     (xhr.open as (...args: unknown[]) => void)("GET", "https://manifest.googlevideo.com/api/manifest/hls_playlist?signature=secret", true);
+    xhr.setRequestHeader("Range", "bytes=0-3");
     xhr.finish();
     const entries = globals.__YTDLP_XHR_DIAG as Record<string, unknown>[];
     expect(entries.at(-1)).toEqual({
       method: "GET", host: "manifest.googlevideo.com", kind: "manifest", status: 206,
-      status_text: "Partial Content", bytes: 4, content_length: "4", content_range: "bytes 0-3/4",
+      status_text: "Partial Content", range: "bytes=0-3", bytes: 4,
+      content_length: "4", content_range: "bytes 0-3/4",
     });
     expect(JSON.stringify(entries)).not.toContain("signature=secret");
   });

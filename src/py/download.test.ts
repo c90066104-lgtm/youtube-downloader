@@ -131,4 +131,23 @@ yt_dlp.PROGRESS.append({"status": "error"})`);
     expect(message).toContain('"xhr_requests":[]');
     expect(message).not.toContain("token=secret");
   });
+
+  it("includes NoSupportingHandlers inner errors while redacting signed URLs", async () => {
+    py.runPython(`
+import yt_dlp
+class FakeNoSupportingHandlers(Exception): pass
+error = FakeNoSupportingHandlers("Unable to handle request: 1 unexpected error(s)")
+error.unexpected_errors = [RuntimeError("XHR read failed https://media.example/videoplayback?sig=secret")]
+yt_dlp.ERROR = error
+`);
+    let message = "";
+    try {
+      await download(["140"]);
+    } catch (error) {
+      message = error instanceof Error ? error.message : String(error);
+    }
+    expect(message).toContain('"nested_errors":[{"type":"RuntimeError"');
+    expect(message).toContain("XHR read failed");
+    expect(message).not.toContain("sig=secret");
+  });
 });

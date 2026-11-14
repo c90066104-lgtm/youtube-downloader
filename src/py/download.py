@@ -42,6 +42,34 @@ def _safe_error(error):
     return text[:500]
 
 
+def _nested_errors(error):
+    """Expose yt-dlp RequestDirector's hidden unexpected errors, safely and briefly."""
+    pending = []
+    for attribute in ("unexpected_errors", "unsupported_errors"):
+        values = getattr(error, attribute, None)
+        if isinstance(values, (list, tuple)):
+            pending.extend(values[:8])
+    if not pending:
+        for attribute in ("cause", "__cause__", "__context__"):
+            cause = getattr(error, attribute, None)
+            if cause:
+                pending.append(cause)
+
+    details = []
+    seen = set()
+    while pending and len(details) < 8:
+        nested = pending.pop(0)
+        if nested is None or id(nested) in seen:
+            continue
+        seen.add(id(nested))
+        details.append({"type": type(nested).__name__, "message": _safe_error(nested)})
+        for attribute in ("cause", "__cause__", "__context__"):
+            cause = getattr(nested, attribute, None)
+            if cause and id(cause) not in seen:
+                pending.append(cause)
+    return details
+
+
 def _progress_hook(index, state):
     def hook(data):
         if data.get("status") not in ("downloading", "finished"):
@@ -103,6 +131,7 @@ def _debug_report(error, index, format_id, cache_hit, cached_info, selected_form
         "output_files": files,
         "exception_type": type(error).__name__,
         "exception": _safe_error(error),
+        "nested_errors": _nested_errors(error),
     }
     return " | YTDLP_DEBUG=" + json.dumps(report, ensure_ascii=True, separators=(",", ":"))
 

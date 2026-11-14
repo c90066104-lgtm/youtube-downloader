@@ -41,6 +41,7 @@ return function(event) {
     entries.push({
         method: String(xhr.__ydlp_request_method || "GET"), host, kind,
         status: Number(xhr.status) || 0, status_text: String(xhr.statusText || "").slice(0, 80),
+        range: String(xhr.__ydlp_request_range || "").slice(0, 80) || null,
         bytes, content_length: header("content-length"), content_range: header("content-range"),
     });
     if (entries.length > 40) entries.splice(0, entries.length - 40);
@@ -78,6 +79,11 @@ def proxy_open_handler(xhr_instance, method, url, async_val=True, username=None,
 
 
 def proxy_set_header_handler(xhr_instance, name, value):
+    if str(name).lower() == "range":
+        try:
+            xhr_instance.__ydlp_request_range = str(value)[:80]
+        except Exception:
+            pass
     if _is_unsafe_header(name):
         name = f"X-Proxy-{name}"
 
