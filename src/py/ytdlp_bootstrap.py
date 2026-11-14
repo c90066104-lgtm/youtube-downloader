@@ -6,7 +6,14 @@ from js import XMLHttpRequest
 
 _original_xhr_open = XMLHttpRequest.prototype.open
 _original_xhr_set_header = XMLHttpRequest.prototype.setRequestHeader
-CORS_PROXY = "https://cf-proxy.eidoriantan.com/"
+_DEFAULT_CORS_PROXY = "https://cf-proxy.eidoriantan.com/"
+# pyodide.worker publishes the selected proxy before this bootstrap runs. In the
+# APK that is the loopback server; preserve it instead of silently reverting to
+# the shared public proxy. In a normal browser the published value is the existing
+# configured/default proxy, and this default remains a compatibility fallback.
+_configured_proxy = getattr(js.globalThis, "YTDLP_CORS_PROXY", None)
+_configured_proxy = str(_configured_proxy) if _configured_proxy else ""
+CORS_PROXY = _configured_proxy if _configured_proxy and _configured_proxy not in ("undefined", "null") else _DEFAULT_CORS_PROXY
 
 _FORBIDDEN_HEADERS = {
     "accept-charset", "accept-encoding", "access-control-request-headers",

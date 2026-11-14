@@ -23,11 +23,16 @@ declare global {
 let py: PyodideAPI;
 let proxyAfterBootstrap: unknown;
 const DEFAULT_PROXY = "https://cf-proxy.eidoriantan.com/";
+const RUNTIME_PROXY = "http://127.0.0.1:54321/";
+const CONFIG_START = bootstrapPy.indexOf("_DEFAULT_CORS_PROXY = ");
+const CONFIG_END = bootstrapPy.indexOf("\n\n_FORBIDDEN_HEADERS", CONFIG_START);
+const proxyConfig = bootstrapPy.slice(CONFIG_START, CONFIG_END);
 
 // The bootstrap patches the global XMLHttpRequest, so it runs once per file, like in the worker.
 beforeAll(async () => {
   (globalThis as Record<string, unknown>).XMLHttpRequest = FakeXHR;
   py = await loadTestPyodide();
+  (globalThis as Record<string, unknown>).YTDLP_CORS_PROXY = RUNTIME_PROXY;
   py.globals.set("CORS_PROXY", "http://set-before-bootstrap");
   await py.runPythonAsync(bootstrapPy);
   proxyAfterBootstrap = py.globals.get("CORS_PROXY");
@@ -70,9 +75,21 @@ describe("proxying requests", () => {
     );
   });
 
-  it("defaults to the shared cf-proxy", () => {
-    // The bootstrap assigns this itself, so it is the value until the worker publishes another.
-    expect(proxyAfterBootstrap).toBe(DEFAULT_PROXY);
+  it("prefers the runtime proxy published by the Android worker before bootstrap", () => {
+    expect(proxyAfterBootstrap).toBe(RUNTIME_PROXY);
+  });
+
+  it("falls back to the shared cf-proxy when no runtime proxy is configured", async () => {
+    const globals = globalThis as Record<string, unknown>;
+    try {
+      globals.YTDLP_CORS_PROXY = "";
+      py.globals.set("CORS_PROXY", "http://stale-value");
+      await py.runPythonAsync(proxyConfig);
+      expect(py.globals.get("CORS_PROXY")).toBe(DEFAULT_PROXY);
+    } finally {
+      globals.YTDLP_CORS_PROXY = RUNTIME_PROXY;
+      py.globals.set("CORS_PROXY", RUNTIME_PROXY);
+    }
   });
 });
 
