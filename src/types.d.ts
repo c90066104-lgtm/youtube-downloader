@@ -126,7 +126,7 @@ export interface DownloadProgress {
 export type ProgressHandler = (progress: DownloadProgress) => void;
 
 /** Bytes fetched so far for the `index`-th requested format; `total` is 0 if unknown. */
-export type FileProgressHandler = (index: number, downloaded: number, total: number) => void;
+export type FileProgressHandler = (index: number, downloaded: number, total: number, finished: boolean) => void;
 
 /** Steps shown on the loading screen, in the order they run. */
 export type LoadStepId = "runtime" | "packages" | "ytdlp" | "ffmpeg";
@@ -169,6 +169,6 @@ export type PyResponse =
   | { type: "step"; step: LoadStepId; state: LoadStepState }
   | { type: "ready" }
   | { type: "initError"; message: string }
-  | { type: "progress"; id: number; index: number; downloaded: number; total: number }
+  | { type: "progress"; id: number; index: number; downloaded: number; total: number; finished: boolean }
   | { type: "result"; id: number; value: unknown }
   | { type: "error"; id: number; message: string };

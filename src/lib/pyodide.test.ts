@@ -113,10 +113,10 @@ describe("runListFormats / runDownload", () => {
     expect(reqA.formatIds).toEqual(["137", "140"]);
     expect(reqA.id).not.toBe(reqB.id);
 
-    w.reply({ type: "progress", id: reqB.id, index: 0, downloaded: 5, total: 10 });
-    w.reply({ type: "progress", id: reqA.id, index: 1, downloaded: 1, total: 0 });
-    expect(onA.mock.calls).toEqual([[1, 1, 0]]);
-    expect(onB.mock.calls).toEqual([[0, 5, 10]]);
+    w.reply({ type: "progress", id: reqB.id, index: 0, downloaded: 5, total: 10, finished: false });
+    w.reply({ type: "progress", id: reqA.id, index: 1, downloaded: 1, total: 0, finished: true });
+    expect(onA.mock.calls).toEqual([[1, 1, 0, true]]);
+    expect(onB.mock.calls).toEqual([[0, 5, 10, false]]);
 
     const files = [{ name: "x.f18.mp4", data: new Uint8Array([1]) }];
     w.reply({ type: "result", id: reqB.id, value: files });
@@ -128,7 +128,7 @@ describe("runListFormats / runDownload", () => {
   it("ignores messages for unknown ids", async () => {
     const w = await ready();
     expect(() => {
-      w.reply({ type: "progress", id: 999, index: 0, downloaded: 1, total: 1 });
+      w.reply({ type: "progress", id: 999, index: 0, downloaded: 1, total: 1, finished: false });
       w.reply({ type: "result", id: 999, value: null });
     }).not.toThrow();
   });

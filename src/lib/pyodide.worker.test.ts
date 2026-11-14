@@ -202,8 +202,8 @@ yt_dlp.FILES["140"] = ("m4a", b"AUDIO")`);
     await waitFor((m) => m.type === "result" && m.id === 4);
     const progress = messages().filter((m) => m.type === "progress");
     // Back-to-back updates are throttled, but the first and the final one are always sent.
-    expect(progress[0]).toEqual({ type: "progress", id: 4, index: 0, downloaded: 1, total: 5 });
-    expect(progress.at(-1)).toEqual({ type: "progress", id: 4, index: 0, downloaded: 5, total: 5 });
+    expect(progress[0]).toEqual({ type: "progress", id: 4, index: 0, downloaded: 1, total: 5, finished: false });
+    expect(progress.at(-1)).toEqual({ type: "progress", id: 4, index: 0, downloaded: 5, total: 5, finished: true });
     expect(progress.length).toBeLessThan(3);
   });
 

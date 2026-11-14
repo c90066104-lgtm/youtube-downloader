@@ -63,7 +63,7 @@ export function initPyodide(report: StepReporter = () => {}): Promise<void> {
             reject(new Error(msg.message));
             break;
           case "progress":
-            pending.get(msg.id)?.onProgress?.(msg.index, msg.downloaded, msg.total);
+            pending.get(msg.id)?.onProgress?.(msg.index, msg.downloaded, msg.total, msg.finished);
             break;
           case "result":
           case "error": {

@@ -75,7 +75,7 @@ async function download(id: number, url: string, formatIds: string[]): Promise<D
     const now = performance.now();
     if (!finished && now - last < PROGRESS_INTERVAL_MS) return;
     last = now;
-    send({ type: "progress", id, index, downloaded, total });
+    send({ type: "progress", id, index, downloaded, total, finished });
   };
   pyodide.globals.set("TARGET_URL", url);
   pyodide.globals.set("FORMAT_IDS", pyodide.toPy(formatIds));

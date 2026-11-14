@@ -86,14 +86,18 @@ export async function downloadStreams(
   if (audio) formats.push(audio);
 
   report(first, null, "Fetching stream details…");
-  const files = await runDownload(singleVideoUrl(url), formats.map((f) => f.format_id), (i, done, total) => {
+  const files = await runDownload(singleVideoUrl(url), formats.map((f) => f.format_id), (i, done, total, finished) => {
     // yt-dlp doesn't always know the size up front; fall back to the listed one.
     total ||= formats[i].filesize || formats[i].filesize_approx || 0;
-    report(
-      i === 0 ? first : "audio",
-      total ? Math.min(done / total, 1) : null,
-      total ? `${fmtBytes(done)} of ${fmtBytes(total)}` : `${fmtBytes(done)} downloaded`,
-    );
+    const stage: DownloadStageId = i === 0 ? first : "audio";
+    const fraction = total ? Math.min(done / total, 1) : null;
+    const detail = total ? `${fmtBytes(done)} of ${fmtBytes(total)}` : `${fmtBytes(done)} downloaded`;
+    report(stage, fraction, detail);
+
+    // The UI otherwise keeps showing the completed video while the audio's
+    // first request is still starting and yt-dlp has not emitted byte progress.
+    if (finished && audio && i === 0) report("audio", null, "Starting audio download…");
+    if (finished && audio && i === 1) report("merge", null, "Preparing streams for merge…");
   });
 
   const grab = (f: MediaFormat): DownloadedStream => {

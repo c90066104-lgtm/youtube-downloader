@@ -37,9 +37,9 @@ function fileFor(f: MediaFormat, byte = Number(f.format_id) % 256): DownloadedFi
 }
 
 /** Makes runDownload emit `progress` events and return a file per requested format. */
-function serveDownload(progress: [number, number, number][] = []) {
+function serveDownload(progress: [number, number, number, boolean?][] = []) {
   mocks.runDownload.mockImplementation(async (_url: string, ids: string[], onProgress: FileProgressHandler) => {
-    progress.forEach(([i, done, total]) => onProgress(i, done, total));
+    progress.forEach(([i, done, total, finished = false]) => onProgress(i, done, total, finished));
     return ids.map((id) => fileFor(INFO.formats.find((f) => f.format_id === id)!));
   });
 }
@@ -136,6 +136,27 @@ describe("downloadStreams", () => {
     const report = vi.fn();
     await downloadStreams({ ...options(FORMATS.webm_720).opts, info }, report);
     expect(report).toHaveBeenCalledWith("video", null, "3.0 MB downloaded");
+  });
+
+  it("switches to audio as soon as yt-dlp marks the video stream finished", async () => {
+    mocks.runDownload.mockImplementation(async (_url: string, ids: string[], onProgress: FileProgressHandler) => {
+      onProgress(0, 100, 100, true);
+      return ids.map((id) => fileFor(INFO.formats.find((f) => f.format_id === id)!));
+    });
+    const report = vi.fn();
+    await downloadStreams(options(FORMATS.mp4_1080).opts, report);
+    expect(report).toHaveBeenCalledWith("audio", null, "Starting audio download…");
+  });
+
+  it("switches to merge as soon as yt-dlp marks the audio stream finished", async () => {
+    mocks.runDownload.mockImplementation(async (_url: string, ids: string[], onProgress: FileProgressHandler) => {
+      onProgress(0, 100, 100, true);
+      onProgress(1, 100, 100, true);
+      return ids.map((id) => fileFor(INFO.formats.find((f) => f.format_id === id)!));
+    });
+    const report = vi.fn();
+    await downloadStreams(options(FORMATS.mp4_1080).opts, report);
+    expect(report).toHaveBeenCalledWith("merge", null, "Preparing streams for merge…");
   });
 
   it("labels loading progress under the first stage", async () => {
