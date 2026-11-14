@@ -13,6 +13,12 @@ class LocalCorsProxyTest {
         assertEquals("http://8.8.8.8/", LocalCorsProxy.validateUrl("http://8.8.8.8/").toString())
     }
 
+    @Test fun preservesPercentEncodedPathAndQueryForSignedMediaUrls() {
+        val input = "https://rr1---sn.example.googlevideo.com/api/manifest/hls_playlist/%2Fseg?mime=video%2Fmp4&sig=a%2Bb&n=x%3Dy#discarded"
+        val expected = "https://rr1---sn.example.googlevideo.com/api/manifest/hls_playlist/%2Fseg?mime=video%2Fmp4&sig=a%2Bb&n=x%3Dy"
+        assertEquals(expected, LocalCorsProxy.validateUrl(input).toASCIIString())
+    }
+
     @Test fun blocksLoopbackPrivateAndLinkLocalAddresses() {
         listOf("http://127.0.0.1/", "http://10.0.0.1/", "http://192.168.1.5/", "http://169.254.169.254/").forEach { url ->
             assertThrows(IllegalArgumentException::class.java) { LocalCorsProxy.validateUrl(url) }

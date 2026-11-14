@@ -220,9 +220,14 @@ class LocalCorsProxy : NanoHTTPD("127.0.0.1", 0) {
             val port = uri.port
             require(port == -1 || (scheme == "http" && port == 80) || (scheme == "https" && port == 443)) { "Only ports 80 and 443 are allowed" }
             if (isIpLiteral(host)) require(isPublicAddress(InetAddress.getByName(host))) { "Non-public IP address is forbidden" }
-            // URI's component constructor expects decoded path/query; using rawPath here would
-            // double-escape existing percent sequences. Fragments are deliberately not sent upstream.
-            return URI(scheme, null, host, port, uri.path.ifEmpty { "/" }, uri.query, null)
+            // Preserve the raw encoded path and query. Rebuilding this URI with the
+            // component constructor decodes escapes such as %2B/%3D in signed GoogleVideo
+            // URLs, changing the signature and potentially yielding empty HLS responses.
+            // Fragments are deliberately not sent upstream.
+            val authority = uri.rawAuthority ?: throw IllegalArgumentException("Host authority is missing")
+            val rawPath = uri.rawPath?.ifEmpty { "/" } ?: "/"
+            val rawQuery = uri.rawQuery?.let { "?$it" } ?: ""
+            return URI("$scheme://$authority$rawPath$rawQuery")
         }
 
         private fun isIpLiteral(host: String): Boolean = host.contains(':') || host.matches(Regex("[0-9.]+"))
