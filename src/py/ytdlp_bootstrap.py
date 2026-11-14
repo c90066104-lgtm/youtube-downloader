@@ -39,8 +39,9 @@ return function(event) {
     const header = (name) => { try { return xhr.getResponseHeader(name); } catch (_) { return null; } };
     const entries = globalThis.__YTDLP_XHR_DIAG || (globalThis.__YTDLP_XHR_DIAG = []);
     entries.push({
-        method: String(xhr.__ydlp_request_method || "GET"), host, kind,
+        method: String(xhr.__ydlp_request_method || "GET"), event: String(event.type || "unknown"), host, kind,
         status: Number(xhr.status) || 0, status_text: String(xhr.statusText || "").slice(0, 80),
+        ready_state: Number(xhr.readyState) || 0,
         range: String(xhr.__ydlp_request_range || "").slice(0, 80) || null,
         bytes, content_length: header("content-length"), content_range: header("content-range"),
     });
@@ -68,7 +69,10 @@ def proxy_open_handler(xhr_instance, method, url, async_val=True, username=None,
             xhr_instance.__ydlp_target_url = str(url)
             xhr_instance.__ydlp_request_method = str(method)
             if not getattr(xhr_instance, "__ydlp_debug_attached", False):
-                xhr_instance.addEventListener("loadend", _XHR_DEBUG_LISTENER)
+                # Record the terminal event itself: loadend alone can make a
+                # failed transfer indistinguishable from a successful one.
+                for event_name in ("load", "error", "timeout", "abort"):
+                    xhr_instance.addEventListener(event_name, _XHR_DEBUG_LISTENER)
                 xhr_instance.__ydlp_debug_attached = True
         except Exception:
             pass

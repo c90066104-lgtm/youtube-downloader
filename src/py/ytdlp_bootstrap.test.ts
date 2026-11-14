@@ -10,7 +10,7 @@ class FakeXHR {
   status = 206;
   statusText = "Partial Content";
   response = new Uint8Array([1, 2, 3, 4]);
-  private listeners = new Map<string, (event: { currentTarget: FakeXHR }) => void>();
+  private listeners = new Map<string, (event: { currentTarget: FakeXHR; type: string }) => void>();
   open(...args: unknown[]) {
     this.opened = args;
   }
@@ -18,13 +18,13 @@ class FakeXHR {
     this.headers.push([name, value]);
   }
   addEventListener(name: string, listener: unknown) {
-    this.listeners.set(name, listener as (event: { currentTarget: FakeXHR }) => void);
+    this.listeners.set(name, listener as (event: { currentTarget: FakeXHR; type: string }) => void);
   }
   getResponseHeader(name: string) {
     return name.toLowerCase() === "content-length" ? "4" : name.toLowerCase() === "content-range" ? "bytes 0-3/4" : null;
   }
-  finish() {
-    this.listeners.get("loadend")?.({ currentTarget: this });
+  finish(type = "load") {
+    this.listeners.get(type)?.({ currentTarget: this, type });
   }
 }
 
@@ -77,9 +77,25 @@ describe("proxying requests", () => {
     xhr.finish();
     const entries = globals.__YTDLP_XHR_DIAG as Record<string, unknown>[];
     expect(entries.at(-1)).toEqual({
-      method: "GET", host: "manifest.googlevideo.com", kind: "manifest", status: 206,
+      method: "GET", event: "load", host: "manifest.googlevideo.com", kind: "manifest", status: 206,
       status_text: "Partial Content", range: "bytes=0-3", bytes: 4,
+      ready_state: 0,
       content_length: "4", content_range: "bytes 0-3/4",
+    });
+    expect(JSON.stringify(entries)).not.toContain("signature=secret");
+  });
+
+  it("records failed XHR terminal events without retaining signed query data", () => {
+    const globals = globalThis as Record<string, unknown>;
+    globals.__YTDLP_XHR_DIAG = [];
+    const xhr = new FakeXHR();
+    xhr.status = 0;
+    xhr.statusText = "";
+    (xhr.open as (...args: unknown[]) => void)("GET", "https://rr6.googlevideo.com/videoplayback?signature=secret", true);
+    xhr.finish("error");
+    const entries = globals.__YTDLP_XHR_DIAG as Record<string, unknown>[];
+    expect(entries.at(-1)).toMatchObject({
+      method: "GET", event: "error", host: "rr6.googlevideo.com", kind: "media", status: 0,
     });
     expect(JSON.stringify(entries)).not.toContain("signature=secret");
   });
