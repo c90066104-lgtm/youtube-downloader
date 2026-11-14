@@ -1,0 +1,5 @@
+<resources>
+    <color name="surface">#10131d</color>
+    <color name="status_bar">#171b29</color>
+    <color name="text_primary">#f3f0ea</color>
+</resources>

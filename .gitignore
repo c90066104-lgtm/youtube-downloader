@@ -25,3 +25,12 @@ dist-ssr
 
 .wrangler/
 .env
+
+# Android build artifacts; keep android/app/src/main/assets/www tracked.
+android/.gradle/
+android/local.properties
+android/**/build/
+android/.idea/
+android/*.iml
+*.jks
+*.keystore

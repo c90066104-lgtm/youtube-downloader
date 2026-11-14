@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://f0b8d40e.youtube-downloader-dmf.pages.dev/sitemap.xml

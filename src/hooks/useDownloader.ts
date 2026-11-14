@@ -21,6 +21,14 @@ const pushedStep = (state: unknown): Step | null => {
 };
 
 function loadProxy(): string {
+  // Android starts its loopback proxy before loading the official remote web UI.
+  // Outside the APK, the existing saved/default proxy behavior is unchanged.
+  try {
+    const localProxy = window.AndroidProxy?.getProxyUrl();
+    if (localProxy) return localProxy;
+  } catch {
+    /* Native bridge unavailable; fall back to browser storage. */
+  }
   try {
     return localStorage.getItem(PROXY_KEY) || DEFAULT_PROXY;
   } catch {
