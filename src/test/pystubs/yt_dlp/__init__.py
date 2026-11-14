@@ -6,15 +6,17 @@ INFO = {}       # returned by extract_info
 FILES = {}      # format_id -> (ext, bytes) written by download
 PROGRESS = []   # hook dicts sent with status "downloading" before each file is written
 ERROR = None    # raised by extract_info/download when set
+LAST_INFO = None
 
 
 def reset():
-    global INFO, ERROR
+    global INFO, ERROR, LAST_INFO
     CALLS.clear()
     FILES.clear()
     PROGRESS.clear()
     INFO = {}
     ERROR = None
+    LAST_INFO = None
 
 
 class YoutubeDL:
@@ -50,6 +52,16 @@ class YoutubeDL:
             raise ERROR
         if not any(str(f.get("format_id")) == str(fid) for f in info.get("formats", [])):
             raise utils.DownloadError("Requested format is not available")
+        self._write_file(fid, info)
+        return info
+
+    def process_info(self, info):
+        global LAST_INFO
+        fid = str(info.get("format_id"))
+        CALLS.append((self.params, "process_info", info.get("id"), fid))
+        if ERROR:
+            raise ERROR
+        LAST_INFO = info.copy()
         self._write_file(fid, info)
         return info
 

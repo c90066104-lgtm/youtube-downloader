@@ -27,11 +27,21 @@ for _i, _fid in enumerate(FORMAT_IDS):
     }) as ydl:
         if globals().get("_CACHED_INFO_URL") == TARGET_URL and isinstance(globals().get("_CACHED_INFO"), dict):
             _cached_info = globals()["_CACHED_INFO"]
-            if not any(str(f.get("format_id")) == str(_fid) for f in _cached_info.get("formats", [])):
+            _selected_format = next((f for f in _cached_info.get("formats", [])
+                                     if str(f.get("format_id")) == str(_fid)), None)
+            if _selected_format is None:
                 raise RuntimeError(f"Format {_fid} is no longer in the listed formats. Fetch formats again and retry.")
-            # Reuse the extraction that supplied the IDs to the picker. A second
-            # YouTube extraction can return a different format table or client set.
-            ydl.process_ie_result(copy.deepcopy(_cached_info), download=True)
+            # The listing already ran yt-dlp's video processing and format-ID
+            # normalization. Do not re-run its selector on that processed table:
+            # merge the exact selected stream into the video metadata and download
+            # it directly, avoiding a second "Requested format is not available".
+            _download_info = copy.deepcopy(_cached_info)
+            _download_info.update(copy.deepcopy(_selected_format))
+            for _stale_key in ("requested_formats", "requested_downloads", "__files_to_merge"):
+                _download_info.pop(_stale_key, None)
+            _download_info["format_id"] = str(_fid)
+            _download_info["format"] = _selected_format.get("format") or str(_fid)
+            ydl.process_info(_download_info)
         else:
             # Compatibility fallback for callers that did not run list_formats.py.
             ydl.download([TARGET_URL])

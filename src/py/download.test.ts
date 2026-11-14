@@ -47,14 +47,28 @@ describe("download.py", () => {
     ]);
   });
 
-  it("downloads from the exact cached format table returned by the listing step", async () => {
+  it("downloads the exact cached format record without running format selection a second time", async () => {
     py.runPython(`
 _CACHED_INFO_URL = "https://www.youtube.com/watch?v=jNQXAC9IVRw"
-_CACHED_INFO = {"id": "jNQXAC9IVRw", "formats": [{"format_id": "137"}]}
+_CACHED_INFO = {
+  "id": "jNQXAC9IVRw", "title": "Test video",
+  "requested_formats": [{"format_id": "old"}],
+  "requested_downloads": [{"format_id": "old"}],
+  "__files_to_merge": ["old.webm"],
+  "formats": [{"format_id": "137", "ext": "mp4", "url": "https://media.example/video", "format": "137 - 720p"}],
+}
 `);
     expect(await download(["137"])).toEqual({ "jNQXAC9IVRw.f137.mp4": "video-bytes" });
     const calls = await pyJson<[string, string, string][]>(py, "import yt_dlp\n[c[1:] for c in yt_dlp.CALLS]");
-    expect(calls).toEqual([["process_ie_result", "jNQXAC9IVRw", "137"]]);
+    expect(calls).toEqual([["process_info", "jNQXAC9IVRw", "137"]]);
+    const info = await pyJson<Record<string, unknown>>(py, "import yt_dlp\nyt_dlp.LAST_INFO");
+    expect(info).toMatchObject({
+      id: "jNQXAC9IVRw", title: "Test video", format_id: "137",
+      ext: "mp4", url: "https://media.example/video", format: "137 - 720p",
+    });
+    expect(info).not.toHaveProperty("requested_formats");
+    expect(info).not.toHaveProperty("requested_downloads");
+    expect(info).not.toHaveProperty("__files_to_merge");
   });
 
   it("never asks yt-dlp to merge or post-process (ffmpeg.wasm does that)", async () => {
