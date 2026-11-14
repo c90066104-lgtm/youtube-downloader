@@ -23,6 +23,17 @@ describe("friendlyError", () => {
     expect(friendlyError(e)).toBe("[youtube] abc: Video unavailable");
   });
 
+  it("preserves the compact yt-dlp diagnostic appended to the final traceback line", () => {
+    const e = new Error([
+      "Traceback (most recent call last):",
+      "  File \"download.py\", line 99, in <module>",
+      'RuntimeError: The downloaded file is empty | YTDLP_DEBUG={"cache_hit":true,"downloaded_bytes":0}',
+    ].join("\n"));
+    expect(friendlyError(e)).toBe(
+      'The downloaded file is empty | YTDLP_DEBUG={"cache_hit":true,"downloaded_bytes":0}',
+    );
+  });
+
   it("strips simple exception prefixes and ERROR: markers", () => {
     expect(friendlyError(new Error("ValueError: bad url"))).toBe("bad url");
     expect(friendlyError(new Error("ERROR: Unsupported URL"))).toBe("Unsupported URL");

@@ -115,4 +115,19 @@ yt_dlp.PROGRESS.append({"status": "error"})`);
     py.runPython("import yt_dlp\nyt_dlp.ERROR = yt_dlp.utils.DownloadError('ERROR: HTTP Error 403: Forbidden')");
     await expect(download(["137"])).rejects.toThrow(/HTTP Error 403: Forbidden/);
   });
+
+  it("attaches a redacted diagnostic report when a stream download fails", async () => {
+    py.runPython("import yt_dlp\nyt_dlp.ERROR = yt_dlp.utils.DownloadError('ERROR: The downloaded file is empty')");
+    let message = "";
+    try {
+      await download(["137"], "https://www.youtube.com/watch?v=jNQXAC9IVRw&token=secret");
+    } catch (error) {
+      message = error instanceof Error ? error.message : String(error);
+    }
+    expect(message).toContain("The downloaded file is empty");
+    expect(message).toContain("YTDLP_DEBUG=");
+    expect(message).toContain('"selected_format_id":"137"');
+    expect(message).toContain('"cache_hit":false');
+    expect(message).not.toContain("token=secret");
+  });
 });
